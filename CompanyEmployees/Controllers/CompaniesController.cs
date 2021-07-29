@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CompanyEmployees.ActionFilters;
 using Marvin.Cache.Headers;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CompanyEmployees.Controllers
 {
@@ -17,6 +18,7 @@ namespace CompanyEmployees.Controllers
     [Route("api/companies")]
     [ApiController]
     [ResponseCache(CacheProfileName = "120SecondsDuration")]
+    [ApiExplorerSettings(GroupName = "v1")]
     public class CompaniesController : ControllerBase
     {
         private readonly IRepositoryManager _repository;
@@ -30,7 +32,7 @@ namespace CompanyEmployees.Controllers
             _mapper = mapper;
         }
 
-        [HttpGet(Name = "GetCompanies")]
+        [HttpGet(Name = "GetCompanies"), Authorize(Roles = "Manager")]
         public async Task<IActionResult> GetCompanies()
         {
             var companies = await _repository.Company.GetAllCompaniesAsync(trackChanges: false);
