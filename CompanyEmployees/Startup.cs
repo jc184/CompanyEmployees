@@ -9,11 +9,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using AspNetCoreRateLimit;
 using CompanyEmployees.ActionFilters;
 using CompanyEmployees.Extensions;
 using CompanyEmployees.Utility;
 using Contracts;
 using Entities.DataTransferObjects;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
@@ -40,27 +42,42 @@ namespace CompanyEmployees
             services.ConfigureLoggerService();
             services.ConfigureSqlContext(Configuration);
             services.ConfigureRepositoryManager();
+            services.AddAutoMapper(typeof(Startup));
+            services.AddScoped<ValidationFilterAttribute>();
+            services.AddScoped<ValidateCompanyExistsAttribute>();
+            services.AddScoped<ValidateEmployeeForCompanyExistsAttribute>();
+
+            services.AddScoped<IDataShaper<EmployeeDto>, DataShaper<EmployeeDto>>();
+
+            services.AddScoped<ValidateMediaTypeAttribute>();
+
+            services.AddScoped<EmployeeLinks>();
+
+            services.ConfigureVersioning();
+
+            services.ConfigureResponseCaching();
+            services.ConfigureHttpCacheHeaders();
+
+            services.AddMemoryCache();
+
+            services.ConfigureRateLimitingOptions();
+            services.AddHttpContextAccessor();
+
+            services.Configure<ApiBehaviorOptions>(options =>
+            {
+                options.SuppressModelStateInvalidFilter = true;
+            });
 
             services.AddControllers(config =>
                 {
                     config.RespectBrowserAcceptHeader = true;
                     config.ReturnHttpNotAcceptable = true;
+                    config.CacheProfiles.Add("120SecondsDuration", new CacheProfile { Duration = 120 });
                 }).AddNewtonsoftJson()
                 .AddXmlDataContractSerializerFormatters()
                 .AddCustomCSVFormatter();
+
             services.AddCustomMediaTypes();
-            services.AddAutoMapper(typeof(Startup));
-            services.AddScoped<ValidationFilterAttribute>();
-            services.AddScoped<ValidateCompanyExistsAttribute>();
-            services.AddScoped<ValidateEmployeeForCompanyExistsAttribute>();
-            services.AddScoped<ValidateMediaTypeAttribute>();
-            services.AddScoped<IDataShaper<EmployeeDto>, DataShaper<EmployeeDto>>();
-            services.AddScoped<EmployeeLinks>();
-            services.Configure<ApiBehaviorOptions>(options =>
-            {
-                options.SuppressModelStateInvalidFilter = true;
-            });
-            services.ConfigureSwagger();
 
         }
 
@@ -77,32 +94,28 @@ namespace CompanyEmployees
             {
                 app.UseHsts();
             }
+
             app.ConfigureExceptionHandler(logger);
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.All
             });
+
+            app.UseIpRateLimiting();
+
             app.UseRouting();
             app.UseCors("CorsPolicy");
-
-            app.UseHttpsRedirection();
-            app.UseStaticFiles();
-
-            app.UseRouting();
+            app.UseResponseCaching();
+            app.UseHttpCacheHeaders();
 
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-            });
-
-            app.UseSwagger();
-            app.UseSwaggerUI(s =>
-            {
-                s.SwaggerEndpoint("/swagger/v1/swagger.json", "Code Maze API v1");
             });
         }
     }
