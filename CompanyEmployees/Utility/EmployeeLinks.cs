@@ -12,7 +12,7 @@ using Microsoft.Net.Http.Headers;
 
 namespace CompanyEmployees.Utility
 {
-        public class EmployeeLinks
+    public class EmployeeLinks
     {
         private readonly LinkGenerator _linkGenerator;
         private readonly IDataShaper<EmployeeDto> _dataShaper;
